@@ -387,7 +387,7 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port https://localhost:${PORT}`);
   // Start the scheduled cleanup task
   const CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // Every 10 minutes
   setInterval(cleanupInactiveRooms, CLEANUP_INTERVAL_MS);

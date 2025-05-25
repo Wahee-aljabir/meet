@@ -99,3 +99,9 @@ body {
     /* Tailwind focus classes are already applied in HTML: focus:ring-indigo-500 focus:border-indigo-500 */
     /* If more customization is needed, it can be added here. */
 }
+
+/* Active state for layout control buttons */
+.layout-control-btn.active {
+    @apply bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400; /* Example active style */
+    /* Ensure this doesn't conflict with other hover/focus styles if those are more specific */
+}

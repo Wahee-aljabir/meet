@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Room - Video Conference</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-800 text-white flex flex-col h-screen antialiased">
+
+    <!-- Critical Error Display Area -->
+    <div id="criticalErrorDisplay" class="hidden fixed top-0 left-0 w-full bg-red-600 p-4 text-center z-50 shadow-lg">
+        <p id="criticalErrorText"></p>
+        <button id="reloadPageBtn" class="mt-2 bg-red-800 hover:bg-red-900 text-white font-semibold py-1 px-3 rounded-lg text-sm">
+            Reload Page
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-grow flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Main Video Grid -->
+        <div id="videoGridContainer" class="flex-grow p-2 sm:p-4 order-2 md:order-1">
+            <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-4 h-full">
+                <!-- Local Video -->
+                <div id="localVideoContainer" class_original="bg-black rounded-lg shadow-lg overflow-hidden" class="video-container">
+                    <video id="localVideo" autoplay muted class="w-full h-full object-cover"></video>
+                    <p class="video-name-tag">You (Local)</p>
+                </div>
+                <!-- Remote videos will be added here -->
+            </div>
+        </div>
+
+        <!-- Chat Panel (Initially Hidden on small, visible on large, toggleable) -->
+        <div id="chatPanel" class="w-full md:w-80 lg:w-96 bg-gray-750 p-3 flex flex-col shadow-xl order-1 md:order-2 transition-transform transform md:translate-x-0 -translate-y-full md:relative fixed bottom-0 md:bottom-auto md:top-0 md:right-0 h-1/2 md:h-full">
+            <button id="closeChatBtn" class="md:hidden self-end p-2 mb-2 text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i> Close
+            </button>
+            <h3 class="text-lg sm:text-xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Chat</h3>
+            <div id="chatMessages" class="flex-grow overflow-y-auto mb-3 space-y-2 pr-1">
+                <!-- Chat messages will appear here -->
+            </div>
+            <div class="flex mt-auto">
+                <input type="text" id="chatInput" class="flex-grow p-2 rounded-l-md bg-gray-800 text-gray-200 border border-gray-600 focus:ring-blue-500 focus:border-blue-500" placeholder="Type a message...">
+                <button id="sendChatBtn" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-r-md font-semibold">
+                    <i class="fas fa-paper-plane"></i> <span class="hidden sm:inline">Send</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Participants Panel (Initially Hidden) -->
+        <div id="participantsPanel" class="hidden fixed top-0 left-0 h-full w-full sm:w-1/3 md:w-1/4 bg-gray-750 p-4 shadow-xl transition-transform transform -translate-x-full z-30">
+            <button id="closeParticipantsBtn" class="absolute top-3 right-3 p-2 text-gray-400 hover:text-white">
+                 <i class="fas fa-times"></i>
+            </button>
+            <h3 class="text-lg sm:text-xl font-semibold mb-4 text-gray-200 border-b border-gray-700 pb-2">Participants</h3>
+            <ul id="participantsList" class="divide-y divide-gray-600 overflow-y-auto h-full pb-16">
+                <!-- Participant list items will appear here -->
+            </ul>
+        </div>
+    </div>
+
+
+    <!-- Controls Toolbar -->
+    <div id="controlsToolbar" class="bg-gray-900 p-3 sm:p-4 flex justify-center items-center space-x-2 sm:space-x-3 shadow-md order-last">
+        <button id="toggleMicBtn" class="control-button bg-gray-700 hover:bg-gray-600">
+            <i class="fas fa-microphone"></i> <span class="hidden sm:inline">Mute</span>
+        </button>
+        <button id="toggleCameraBtn" class="control-button bg-gray-700 hover:bg-gray-600">
+            <i class="fas fa-video"></i> <span class="hidden sm:inline">Hide Cam</span>
+        </button>
+        <button id="screenShareBtn" class="control-button bg-gray-700 hover:bg-gray-600">
+            <i class="fas fa-desktop"></i> <span class="hidden sm:inline">Share</span>
+        </button>
+        <button id="toggleChatBtn" class="control-button bg-gray-700 hover:bg-gray-600 md:hidden"> <!-- Hidden on medium and larger screens by default -->
+            <i class="fas fa-comments"></i> <span class="hidden sm:inline">Chat</span>
+        </button>
+        <button id="raiseHandBtn" class="control-button bg-gray-700 hover:bg-gray-600">
+            <i class="fas fa-hand-paper"></i> <span class="hidden sm:inline">Raise Hand</span>
+        </button>
+        <button id="toggleParticipantsBtn" class="control-button bg-gray-700 hover:bg-gray-600">
+            <i class="fas fa-users"></i> <span class="hidden sm:inline">Participants</span>
+        </button>
+        <button id="endCallBtn" class="control-button bg-red-600 hover:bg-red-700">
+            <i class="fas fa-phone-slash"></i> <span class="hidden sm:inline">End Call</span>
+        </button>
+        <!-- Placeholder for Advanced Feature Toggle Button -->
+        <button id="toggleAdvancedFeaturesBtn" class="control-button bg-gray-700 hover:bg-gray-600">
+            <i class="fas fa-cog"></i> <span class="hidden sm:inline">More</span>
+        </button>
+    </div>
+    
+    <!-- Advanced Features Panel (Initially Hidden) -->
+    <div id="advancedFeaturesPanel" class="hidden fixed bottom-16 sm:bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-750 p-4 rounded-lg shadow-xl z-20 flex space-x-3">
+        <button id="backgroundBlurBtn" class="control-button-sm bg-gray-600 hover:bg-gray-500" title="Toggle Background Blur">
+            <i class="fas fa-magic"></i> <span class="hidden sm:inline">Blur</span>
+        </button>
+        <button id="noiseSuppressionBtn" class="control-button-sm bg-gray-600 hover:bg-gray-500" title="Toggle Noise Suppression">
+            <i class="fas fa-assistive-listening-systems"></i> <span class="hidden sm:inline">Noise</span>
+        </button>
+         <button id="autoMuteOnJoinBtn" class="control-button-sm bg-gray-600 hover:bg-gray-500" title="Toggle Auto Mute on Join">
+            <i class="fas fa-microphone-slash"></i> <span class="hidden sm:inline">AutoMute</span>
+        </button>
+    </div>
+
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/socket-client.js"></script>
+    <script src="js/webrtc.js"></script>
+    <script src="js/meeting-ui.js"></script> 
+</body>
+</html>

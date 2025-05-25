@@ -1,0 +1,32 @@
+{
+  "name": "video-conference-app",
+  "version": "1.0.0",
+  "description": "A real-time video conferencing web application built with Node.js, Express, Socket.IO, and WebRTC.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wahee-aljabir/meet.git"
+  },
+  "keywords": [
+    "webrtc",
+    "socket.io",
+    "video-conference",
+    "real-time",
+    "chat"
+  ],
+  "author": "AI Software Engineer (Generated)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Wahee-aljabir/meet/issues"
+  },
+  "homepage": "https://github.com/Wahee-aljabir/meet#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.16.0",
+    "socket.io": "^4.8.1"
+  }
+}

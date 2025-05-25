@@ -1,0 +1,101 @@
+/* Apply a more modern sans-serif font stack if Inter is not explicitly loaded via HTML */
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    /* antialiased is applied via Tailwind utility class in HTML */
+}
+
+/* Animation for the modal-like sections on the landing page */
+/* These classes are already applied in the HTML: hidden, transform, transition-all, duration-500, ease-in-out */
+/* For a fade-in effect, you might combine opacity transitions with visibility. */
+/* Tailwind handles transitions well, custom CSS for animations might not be needed if using transform utilities. */
+
+/* Example of a fade-in animation if needed (can be applied with JS) */
+.section-fade-in {
+    animation: fadeInSmooth 0.5s ease-in-out forwards;
+}
+.section-fade-out { /* If needed for hiding */
+    animation: fadeOutSmooth 0.5s ease-in-out forwards;
+}
+
+@keyframes fadeInSmooth {
+    from { opacity: 0; transform: translateY(20px); } /* Start slightly below and faded out */
+    to { opacity: 1; transform: translateY(0); } /* End at normal position and fully visible */
+}
+@keyframes fadeOutSmooth {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(20px); }
+}
+
+
+/* General styles for control buttons in the meeting room for consistency */
+/* These are for meeting.html, but kept here for overall style consistency if any elements are reused */
+.control-button {
+    @apply text-white font-semibold py-2 px-3 sm:py-2 sm:px-4 rounded-lg transition-all duration-150 ease-in-out flex items-center justify-center space-x-2;
+}
+.control-button:hover {
+    transform: translateY(-1px); 
+}
+.control-button:active {
+    transform: translateY(0px); 
+}
+.control-button i { 
+    @apply align-middle;
+}
+
+.control-button-sm {
+     @apply text-white font-semibold py-2 px-3 rounded-md transition-all duration-150 ease-in-out flex items-center justify-center space-x-1 text-xs sm:text-sm;
+}
+.control-button-sm:hover {
+    transform: translateY(-1px);
+}
+.control-button-sm:active {
+    transform: translateY(0px);
+}
+
+/* Styling for video containers and name tags (meeting.html) */
+.video-container {
+    @apply bg-black rounded-lg shadow-lg overflow-hidden relative aspect-video flex items-center justify-center;
+}
+.video-container video {
+    @apply w-full h-full object-cover;
+}
+.video-name-tag { 
+    @apply absolute bottom-2 left-2 text-xs sm:text-sm bg-black bg-opacity-60 px-2 py-1 rounded-md text-gray-200 shadow;
+    z-index: 1; 
+}
+
+/* Chat panel specific styling for scrollbar (meeting.html) */
+#chatMessages::-webkit-scrollbar {
+    width: 8px;
+}
+#chatMessages::-webkit-scrollbar-track {
+    @apply bg-gray-700 rounded-lg; /* Tailwind apply for theme colors */
+}
+#chatMessages::-webkit-scrollbar-thumb {
+    @apply bg-gray-500 rounded-lg;
+}
+#chatMessages::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+}
+
+/* Custom class for screen sharing video element (meeting.html) */
+.screen-sharing-active {
+    /* object-fit: contain; /* Often better for screen shares, handled in JS */
+}
+
+/* Custom background color used in meeting.html for panels */
+.bg-gray-750 { 
+    background-color: #3a475A; /* Example custom color */
+}
+
+/* Styles for index.html specific elements if needed beyond Tailwind utilities */
+/* Most styling for index.html modals/sections is done via Tailwind classes directly in the HTML. */
+/* E.g., `bg-gradient-to-br from-purple-600 via-pink-500 to-red-500` for the body background. */
+/* `bg-white p-6 sm:p-10 rounded-xl shadow-2xl` for the main card. */
+/* `bg-gray-50 rounded-lg ring-1 ring-gray-200` for the modal sections. */
+
+/* Ensure input fields on index.html have a consistent focus style */
+#meetingCodeInput:focus {
+    /* Tailwind focus classes are already applied in HTML: focus:ring-indigo-500 focus:border-indigo-500 */
+    /* If more customization is needed, it can be added here. */
+}

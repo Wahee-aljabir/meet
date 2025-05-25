@@ -10,48 +10,58 @@ const peerConnections = {}; // Stores RTCPeerConnection objects, keyed by target
 const localVideo = document.getElementById('localVideo');
 const videoGrid = document.getElementById('videoGrid');
 
+// Promise for local stream readiness
+let _resolveLocalStreamReady;
+let _rejectLocalStreamReady;
+window.localStreamReady = new Promise((resolve, reject) => {
+    _resolveLocalStreamReady = resolve;
+    _rejectLocalStreamReady = reject;
+});
+
 // Function to initialize WebRTC: get local media
-async function initWebRTC() {
-    try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (localVideo) {
-            localVideo.srcObject = localStream;
-        } else {
-            console.error('localVideo element not found.');
-            return; // Stop if video element is missing
-        }
-        console.log('Local stream obtained.');
-
-        // The following line was in socket-client.js, moved here for better timing
-        // as it depends on localStream being ready for createNewPeerConnection.
-        // It's now implicitly handled by socket 'connect' then 'room-joined'
-        // which will then call createNewPeerConnection.
-
-    } catch (error) {
-        console.error('Error accessing local media:', error);
-        // Use the globally exposed showCriticalError function from meeting-ui.js
-        if (typeof window.meetingUI !== 'undefined' && typeof window.meetingUI.showCriticalError === 'function') {
-            let errorMessage = 'Error accessing camera and microphone. Please check permissions and ensure no other application is using them.';
-            if (error.name === 'NotFoundError') {
-                errorMessage = 'No camera or microphone found. Please connect a device and try again.';
-            } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-                errorMessage = 'Permission to use camera and microphone was denied. Please enable permissions in your browser settings and reload the page.';
-            } else if (error.name === 'OverconstrainedError') {
-                errorMessage = `The specified media constraints could not be satisfied. Requested: ${JSON.stringify(error.constraint)}. Try different settings.`;
+function initWebRTC() { 
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+            localStream = stream;
+            if (localVideo) {
+                localVideo.srcObject = stream;
+                // Add controls overlay to local video
+                const localVideoContainer = document.getElementById('localVideoContainer');
+                if (localVideoContainer) {
+                    addVideoControlsOverlay(localVideoContainer, 'localVideoContainer', true); // true for isLocal
+                }
+            } else {
+                console.warn("localVideo element not found during initWebRTC.");
             }
-            window.meetingUI.showCriticalError(errorMessage);
-        } else {
-            // Fallback if the UI function isn't available
-            alert('Critical Error: Could not access camera/microphone. Please check permissions and ensure no other application is using them. Try reloading the page.');
-        }
-    }
+            console.log("Local stream obtained successfully.");
+            _resolveLocalStreamReady(stream); 
+        })
+        .catch(error => {
+            console.error('Error accessing media devices.', error);
+            if (window.meetingUI && typeof window.meetingUI.showCriticalError === 'function') {
+                let errorMessage = `Error accessing media devices: ${error.name}. Check permissions & ensure camera/mic are available.`;
+                 if (error.name === 'NotFoundError') {
+                    errorMessage = 'No camera or microphone found. Please connect a device and try again.';
+                } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMessage = 'Permission to use camera and microphone was denied. Please enable permissions in your browser settings and reload the page.';
+                }
+                window.meetingUI.showCriticalError(errorMessage);
+            } else {
+                alert('Critical Error: Could not access camera/microphone. Please check permissions.');
+            }
+            _rejectLocalStreamReady(error); // Reject the global promise
+        });
+    // Note: This function itself doesn't return the promise directly, 
+    // but window.localStreamReady is the promise to await.
 }
 
 // Function to create and configure a new PeerConnection
 function createNewPeerConnection(targetUserId, isInitiator = false) {
     if (!localStream) {
-        console.error('Local stream is not available. Cannot create peer connection.');
-        return null;
+        console.error('Local stream is not available. Cannot create peer connection for', targetUserId);
+        // Optionally, notify the user or queue, but for now, just return.
+        // This situation should be less likely if calls are correctly awaiting window.localStreamReady.
+        return null; 
     }
     if (peerConnections[targetUserId]) {
         console.log(`Peer connection with ${targetUserId} already exists.`);
@@ -63,8 +73,14 @@ function createNewPeerConnection(targetUserId, isInitiator = false) {
     peerConnections[targetUserId] = pc;
 
     // Add local stream tracks to the peer connection
+    // This part assumes localStream is ready. The guard is above.
     localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream);
+        try {
+            pc.addTrack(track, localStream);
+        } catch (error) {
+            console.error(`Error adding track ${track.kind} for ${targetUserId}:`, error);
+            // Depending on the error, might need to handle this more gracefully
+        }
     });
     console.log(`Added local stream tracks for ${targetUserId}`);
 
@@ -167,30 +183,110 @@ async function addIceCandidate(candidate, candidateUserId) {
     }
 }
 
+// Function to toggle fullscreen for a video container
+function toggleFullScreen(videoContainerElement) {
+    if (!document.fullscreenElement) {
+        if (videoContainerElement.requestFullscreen) {
+            videoContainerElement.requestFullscreen();
+        } else if (videoContainerElement.mozRequestFullScreen) { /* Firefox */
+            videoContainerElement.mozRequestFullScreen();
+        } else if (videoContainerElement.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
+            videoContainerElement.webkitRequestFullscreen();
+        } else if (videoContainerElement.msRequestFullscreen) { /* IE/Edge */
+            videoContainerElement.msRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+// Function to add controls overlay to a video container
+function addVideoControlsOverlay(videoContainer, userId, isLocal = false) {
+    let overlay = videoContainer.querySelector('.video-controls-overlay');
+    if (overlay) overlay.remove(); // Remove existing if any, to prevent duplicates
+
+    overlay = document.createElement('div');
+    overlay.className = 'video-controls-overlay absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-25 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-2 p-1';
+    videoContainer.classList.add('group'); // Needed for group-hover
+
+    // 1. Pin Button
+    const pinButton = document.createElement('button');
+    pinButton.innerHTML = '<i class="fas fa-thumbtack"></i>';
+    pinButton.className = 'pin-button control-button-sm bg-gray-700 hover:bg-gray-600 text-white'; // General styling
+    pinButton.dataset.userId = userId; // Store userId for identification
+    pinButton.title = `Pin ${isLocal ? 'You' : userId.substring(0,6)}`;
+    pinButton.onclick = (e) => {
+        e.stopPropagation(); // Prevent event bubbling if container has own click events
+        if (window.meetingUI && typeof window.meetingUI.setSpotlightedUser === 'function') {
+            window.meetingUI.setSpotlightedUser(userId); // Let meeting-ui handle toggle logic
+        }
+    };
+    overlay.appendChild(pinButton);
+
+    // 2. Fullscreen Button
+    const fullscreenButton = document.createElement('button');
+    fullscreenButton.innerHTML = '<i class="fas fa-expand"></i>';
+    fullscreenButton.className = 'control-button-sm bg-gray-700 hover:bg-gray-600 text-white';
+    fullscreenButton.title = 'Toggle Fullscreen';
+    fullscreenButton.onclick = (e) => {
+        e.stopPropagation();
+        toggleFullScreen(videoContainer);
+    };
+    overlay.appendChild(fullscreenButton);
+    
+    // 3. Mute Indicator (Placeholder for remote users, actual icon added based on signaling)
+    if (!isLocal) {
+        const muteIndicator = document.createElement('div');
+        muteIndicator.id = `mute-indicator-${userId}`;
+        muteIndicator.className = 'absolute top-2 left-2 text-red-500 text-lg hidden'; // Hidden by default
+        muteIndicator.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+        videoContainer.appendChild(muteIndicator); // Add to container, not overlay, for persistent visibility if muted
+    }
+    
+    videoContainer.appendChild(overlay);
+
+    // Update pin button state after adding it
+    if (window.meetingUI && typeof window.meetingUI.updatePinButtonStates === 'function'){
+        window.meetingUI.updatePinButtonStates();
+    }
+}
+
+
 // Placeholder for handling remote tracks
 function handleRemoteTrack(event, targetUserId) {
     console.log(`Remote track received from ${targetUserId}`, event.streams[0]);
     let videoElement = document.getElementById(`video-${targetUserId}`);
-    if (!videoElement) {
-        const videoContainer = document.createElement('div');
-        videoContainer.id = `video-container-${targetUserId}`;
-        videoContainer.className = 'bg-black rounded-lg shadow-lg overflow-hidden relative'; // Added relative for positioning name tag
+    let videoContainer = document.getElementById(`video-container-${targetUserId}`);
 
+    if (!videoElement) {
+        videoContainer = document.createElement('div');
+        videoContainer.id = `video-container-${targetUserId}`;
+        // Base classes, layout functions will add/remove specific ones
+        videoContainer.className = 'video-container bg-black rounded-lg shadow-lg overflow-hidden relative flex items-center justify-center'; 
+        
         videoElement = document.createElement('video');
         videoElement.id = `video-${targetUserId}`;
         videoElement.autoplay = true;
-        videoElement.playsInline = true; // Important for mobile browsers
+        videoElement.playsInline = true;
         videoElement.className = 'w-full h-full object-cover';
         
         const nameTag = document.createElement('p');
-        nameTag.className = 'absolute bottom-2 left-2 text-sm bg-black bg-opacity-50 px-2 py-1 rounded';
-        nameTag.textContent = `User: ${targetUserId.substring(0, 6)}`; // Shortened ID
+        nameTag.className = 'video-name-tag';
+        nameTag.textContent = `User: ${targetUserId.substring(0, 6)}`;
 
         videoContainer.appendChild(videoElement);
         videoContainer.appendChild(nameTag);
+        addVideoControlsOverlay(videoContainer, targetUserId, false); // Add controls for remote user
         videoGrid.appendChild(videoContainer);
     }
     videoElement.srcObject = event.streams[0];
+
+    // Re-apply current layout after adding a new video
+    if (window.meetingUI && typeof window.meetingUI.applyLayout === 'function' && typeof window.meetingUI.getCurrentLayout === 'function') {
+        window.meetingUI.applyLayout(window.meetingUI.getCurrentLayout());
+    }
 }
 
 // Placeholder for handling user leaving
@@ -203,8 +299,19 @@ function handleUserLeft(userId) {
     const videoElementContainer = document.getElementById(`video-container-${userId}`);
     if (videoElementContainer) {
         videoElementContainer.remove();
+        // Re-apply current layout after removing a video
+        if (window.meetingUI && typeof window.meetingUI.applyLayout === 'function' && typeof window.meetingUI.getCurrentLayout === 'function') {
+            window.meetingUI.applyLayout(window.meetingUI.getCurrentLayout());
+        }
     }
     console.log(`Cleaned up resources for user ${userId}`);
+
+    // If the user who left was spotlighted, clear the spotlight
+    if (window.meetingUI && typeof window.meetingUI.getCurrentSpotlightId === 'function' && window.meetingUI.getCurrentSpotlightId() === userId) {
+        if (typeof window.meetingUI.setSpotlightedUser === 'function') {
+            window.meetingUI.setSpotlightedUser(null);
+        }
+    }
 }
 
 // Call initWebRTC when the script loads
@@ -216,11 +323,16 @@ function toggleMic() {
     const audioTrack = localStream.getAudioTracks()[0];
     if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
-        console.log(`Microphone ${audioTrack.enabled ? 'unmuted' : 'muted'}`);
-        // Optional: Send mic status to others via socketClient.sendMicStatus(audioTrack.enabled);
-        return !audioTrack.enabled; // Return true if muted, false if unmuted
+        const isMuted = !audioTrack.enabled;
+        console.log(`Microphone ${isMuted ? 'muted' : 'unmuted'}`);
+        
+        // Emit mic status change
+        if (window.socketClient && typeof window.socketClient.sendMicStatus === 'function') {
+            window.socketClient.sendMicStatus(isMuted);
+        }
+        return isMuted; // Return true if muted, false if unmuted
     }
-    return false;
+    return false; // Should ideally return current state or throw error if no track
 }
 
 function toggleCamera() {

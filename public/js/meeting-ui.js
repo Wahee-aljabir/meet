@@ -34,11 +34,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const criticalErrorText = document.getElementById('criticalErrorText');
     const reloadPageBtn = document.getElementById('reloadPageBtn');
 
+    // Video Grid & Layout Controls
+    const videoGrid = document.getElementById('videoGrid');
+    const layoutGalleryBtn = document.getElementById('layoutGalleryBtn');
+    const layoutSideBySideBtn = document.getElementById('layoutSideBySideBtn');
+    const layoutSpotlightBtn = document.getElementById('layoutSpotlightBtn');
+    let currentLayout = 'gallery'; // Default layout
+    let spotlightedUserId = null; // To be used later for pinning
 
     // State variables
-    let isChatPanelVisible = false; // Updated name for clarity
-    let isParticipantsPanelVisible = false; // Updated name for clarity
-    let isAdvancedFeaturesPanelVisible = false; // New
+    let isChatPanelVisible = false; 
+    let isParticipantsPanelVisible = false; 
+    let isAdvancedFeaturesPanelVisible = false; 
     let isMicMuted = false; // Tracks actual state from webrtc.js
     let isCameraOff = false; // Tracks actual state from webrtc.js
     let isScreenSharing = false; // Tracks actual state from webrtc.js
@@ -126,6 +133,159 @@ document.addEventListener('DOMContentLoaded', () => {
             advancedFeaturesPanel.classList.toggle('hidden', !isAdvancedFeaturesPanelVisible);
         });
     }
+
+    // --- Layout Control Logic ---
+    function applyGalleryLayout() {
+        console.log("Applying Gallery Layout");
+        if (!videoGrid) return;
+        videoGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-4 h-full'; // Reset to default grid
+        
+        document.querySelectorAll('#videoGrid .video-container').forEach(container => {
+            container.classList.remove('spotlight-main', 'spotlight-pip', 'side-by-side-main', 'side-by-side-hidden', 'hidden');
+            container.classList.add('gallery-view-item'); // Generic class for gallery items
+            // Ensure local video has its specific ID if needed for other logic, but layout is general
+        });
+        // If localVideoContainer exists and is direct child, ensure it's part of the grid flow
+        const localVideoContainer = document.getElementById('localVideoContainer');
+        if (localVideoContainer) {
+            localVideoContainer.classList.remove('spotlight-main', 'spotlight-pip', 'side-by-side-main', 'side-by-side-hidden', 'hidden');
+        }
+    }
+
+    function applySideBySideLayout() {
+        console.log("Applying Side-by-Side Layout");
+        if (!videoGrid) return;
+        videoGrid.className = 'grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 h-full';
+
+        const allContainers = Array.from(document.querySelectorAll('#videoGrid .video-container'));
+        const localVideoContainer = document.getElementById('localVideoContainer');
+        let mainVideos = [];
+
+        // Prioritize spotlighted user if one exists
+        if (spotlightedUserId) {
+            const spotlightedEl = document.getElementById(`video-container-${spotlightedUserId}`) || 
+                                  (spotlightedUserId === 'localVideoContainer' ? localVideoContainer : null);
+            if (spotlightedEl) {
+                mainVideos.push(spotlightedEl);
+            }
+        }
+
+        // Add local video as the second main video if not already the spotlighted one
+        if (localVideoContainer && mainVideos.length < 2 && (!spotlightedUserId || spotlightedUserId !== 'localVideoContainer')) {
+            mainVideos.push(localVideoContainer);
+        }
+
+        // If still less than 2 main videos, fill with other remote users
+        if (mainVideos.length < 2) {
+            for (const container of allContainers) {
+                if (!mainVideos.includes(container) && container.id !== 'localVideoContainer') {
+                    mainVideos.push(container);
+                    if (mainVideos.length === 2) break;
+                }
+            }
+        }
+        // If still only one video (e.g. only local user), it takes one slot.
+        // If no videos at all, mainVideos will be empty.
+
+        allContainers.forEach(container => {
+            container.classList.remove('spotlight-main', 'spotlight-pip', 'gallery-view-item', 'hidden', 'side-by-side-main', 'side-by-side-hidden');
+            if (mainVideos.includes(container)) {
+                container.classList.add('side-by-side-main');
+            } else {
+                container.classList.add('side-by-side-hidden', 'hidden');
+            }
+        });
+         // Ensure the main videos are not hidden if there's only one video total and it's selected
+        if (allContainers.length === 1 && mainVideos.includes(allContainers[0])) {
+            allContainers[0].classList.remove('hidden', 'side-by-side-hidden');
+        }
+    }
+
+    function applySpotlightLayout() {
+        console.log("Applying Spotlight Layout");
+        if (!videoGrid) return;
+        // Video grid becomes a flex container to center the main spotlight, pip is absolute
+        videoGrid.className = 'flex justify-center items-center h-full relative'; 
+
+        const videoContainers = Array.from(document.querySelectorAll('#videoGrid .video-container'));
+        const localVideoContainer = document.getElementById('localVideoContainer');
+        let allContainers = [];
+        if (localVideoContainer && !videoContainers.includes(localVideoContainer)) {
+            allContainers = [localVideoContainer, ...videoContainers.filter(vc => vc.id !== 'localVideoContainer')];
+        } else {
+            allContainers = videoContainers;
+        }
+        
+        // Determine spotlighted video: use spotlightedUserId if set, else first remote, else local.
+        let mainVideo = null;
+        if (spotlightedUserId) {
+            mainVideo = document.getElementById(`video-container-${spotlightedUserId}`) || 
+                        (spotlightedUserId === 'localVideoContainer' ? localVideoContainer : null);
+        }
+        
+        if (!mainVideo && allContainers.length > 1 && allContainers[1].id !== 'localVideoContainer') { // Prefer first remote
+            mainVideo = allContainers[1];
+        } else if (!mainVideo && localVideoContainer) { // Fallback to local if it's the only one or first remote is not suitable
+             mainVideo = localVideoContainer;
+        } else if (!mainVideo && allContainers.length > 0) { // Absolute fallback to first available
+            mainVideo = allContainers[0];
+        }
+
+
+        allContainers.forEach(container => {
+            container.classList.remove('gallery-view-item', 'side-by-side-main', 'side-by-side-hidden', 'hidden');
+            if (container === mainVideo) {
+                container.classList.add('spotlight-main');
+                container.classList.remove('spotlight-pip');
+            } else { // Others become PIPs or are hidden if too many
+                // For now, make local video the PIP if it's not the main spotlight
+                // Or the first non-main video if local is main
+                if (container === localVideoContainer && mainVideo !== localVideoContainer) {
+                     container.classList.add('spotlight-pip');
+                     container.classList.remove('spotlight-main');
+                } else if (mainVideo === localVideoContainer && container !== localVideoContainer && container === allContainers[1]) {
+                    // If local is main, make the first remote user PIP
+                     container.classList.add('spotlight-pip');
+                     container.classList.remove('spotlight-main');
+                }
+                else {
+                    // Hide other videos not part of spotlight or main PIP
+                    container.classList.add('hidden');
+                    container.classList.remove('spotlight-main', 'spotlight-pip');
+                }
+            }
+        });
+         // Ensure mainVideo is not hidden if it was previously
+        if(mainVideo) mainVideo.classList.remove('hidden');
+    }
+
+    function applyLayout(layoutMode) {
+        currentLayout = layoutMode;
+        // Remove active class from all layout buttons
+        [layoutGalleryBtn, layoutSideBySideBtn, layoutSpotlightBtn].forEach(btn => {
+            if(btn) btn.classList.remove('active'); // Using custom .active class from styles.css
+        });
+
+        if (layoutMode === 'gallery' && layoutGalleryBtn) {
+            layoutGalleryBtn.classList.add('active');
+            applyGalleryLayout();
+        } else if (layoutMode === 'side-by-side' && layoutSideBySideBtn) {
+            layoutSideBySideBtn.classList.add('active');
+            applySideBySideLayout();
+        } else if (layoutMode === 'spotlight' && layoutSpotlightBtn) {
+            layoutSpotlightBtn.classList.add('active');
+            applySpotlightLayout();
+        }
+        // Persist layout preference (optional, e.g., localStorage)
+        // localStorage.setItem('preferredLayout', currentLayout);
+    }
+
+    if (layoutGalleryBtn) layoutGalleryBtn.addEventListener('click', () => applyLayout('gallery'));
+    if (layoutSideBySideBtn) layoutSideBySideBtn.addEventListener('click', () => applyLayout('side-by-side'));
+    if (layoutSpotlightBtn) layoutSpotlightBtn.addEventListener('click', () => applyLayout('spotlight'));
+
+    // Initial layout application
+    applyLayout('gallery'); // Default to gallery
     
     // --- Advanced Feature Buttons (Placeholders) ---
     if (backgroundBlurBtn) {
@@ -333,8 +493,8 @@ function updateUserHandStatus(userId, isRaised) {
 window.meetingUI = {
     displayChatMessage,
     updateUserHandStatus,
-    showCriticalError, // Expose to webrtc.js for media errors
-    updateScreenShareButton: (isSharing) => { // Make sure this is defined in the global scope or on meetingUI
+    showCriticalError, 
+    updateScreenShareButton: (isSharing) => { 
         isScreenSharing = isSharing;
         if (screenShareBtn) {
             screenShareBtn.innerHTML = isSharing ?
@@ -346,8 +506,59 @@ window.meetingUI = {
             screenShareBtn.classList.toggle('bg-gray-700', !isSharing);
             screenShareBtn.classList.toggle('hover:bg-gray-600', !isSharing);
         }
+    },
+    applyLayout, // Expose applyLayout to be called by webrtc.js
+    getCurrentLayout: () => currentLayout, 
+    getCurrentSpotlightId: () => spotlightedUserId, 
+    setSpotlightedUser: (userId) => { 
+        if (spotlightedUserId === userId) { 
+            spotlightedUserId = null;
+        } else {
+            spotlightedUserId = userId;
+        }
+        updatePinButtonStates();
+        if (currentLayout === 'spotlight' || currentLayout === 'side-by-side') { 
+            applyLayout(currentLayout); 
+        }
+    },
+    updateRemoteMuteIndicator: (userId, isMuted) => { // New function
+        const muteIndicator = document.getElementById(`mute-indicator-${userId}`);
+        if (muteIndicator) {
+            muteIndicator.classList.toggle('hidden', !isMuted);
+            console.log(`Mute indicator for ${userId} ${isMuted ? 'shown' : 'hidden'}`);
+        } else {
+            console.warn(`Mute indicator UI element not found for user ${userId}`);
+        }
     }
 };
+
+function updatePinButtonStates() {
+    document.querySelectorAll('.pin-button').forEach(button => {
+        const buttonUserId = button.dataset.userId; // Assuming we set data-user-id on buttons
+        if (buttonUserId === spotlightedUserId) {
+            button.classList.add('text-yellow-400', 'pinned'); // Pinned state
+            button.classList.remove('text-white');
+            button.title = `Unpin ${buttonUserId.substring(0,6)}`;
+        } else {
+            button.classList.remove('text-yellow-400', 'pinned');
+            button.classList.add('text-white');
+            button.title = `Pin ${buttonUserId.substring(0,6)}`;
+        }
+    });
+    // Update local pin button state specifically if it exists
+    const localPinBtn = document.getElementById('localPinBtn');
+    if (localPinBtn) {
+        if (spotlightedUserId === 'localVideoContainer') {
+            localPinBtn.classList.add('text-yellow-400', 'pinned');
+            localPinBtn.classList.remove('text-white');
+            localPinBtn.title = 'Unpin You';
+        } else {
+            localPinBtn.classList.remove('text-yellow-400', 'pinned');
+            localPinBtn.classList.add('text-white');
+            localPinBtn.title = 'Pin You';
+        }
+    }
+}
 
 // Initial button states with icons
 if (toggleMicBtn) toggleMicBtn.innerHTML = '<i class="fas fa-microphone"></i> <span class="hidden sm:inline">Mute</span>';

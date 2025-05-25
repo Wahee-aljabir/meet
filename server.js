@@ -333,6 +333,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle mic status changes
+  socket.on('mic-status-changed', ({ roomId, userId, isMuted }) => {
+    if (userId !== socket.id) {
+      console.error(`Mic status change from unauthenticated user: ${socket.id} for ${userId}`);
+      return;
+    }
+    // Broadcast to other users in the room
+    socket.to(roomId).emit('remote-mic-status-changed', { userId, isMuted });
+    console.log(`User ${userId} in room ${roomId} changed mic status to: ${isMuted ? 'Muted' : 'Unmuted'}`);
+  });
+
   socket.on('disconnect', async () => { // Made async
     console.log(`User disconnected: ${socket.id}`);
 

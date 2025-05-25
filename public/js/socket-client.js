@@ -28,6 +28,13 @@ const socketClient = {
             console.error("Cannot send raise hand status, room or user ID missing.");
         }
     },
+    sendMicStatus: (isMuted) => { // New function to send mic status
+        if (roomId && localUserId) {
+            socket.emit('mic-status-changed', { roomId, userId: localUserId, isMuted });
+        } else {
+            console.error("Cannot send mic status, room or user ID missing.");
+        }
+    },
     getLocalUserId: () => localUserId,
     getRoomId: () => roomId
 };
@@ -70,18 +77,28 @@ socket.on('room-joined', ({ roomId: joinedRoomId, otherUsers }) => {
 
 socket.on('user-joined', (newUserId) => {
     console.log('New user joined the room:', newUserId);
-    // New user will initiate the connection, so this client just logs and waits for an offer.
-    // WebRTC connection will be established when 'offer-received' is handled.
-    // No need to call createNewPeerConnection here with isInitiator = false,
-    // as the offer will trigger the peer connection creation.
+    // This client (existing user) will wait for an offer from the new user.
+    // Ensure local stream is ready for when the offer arrives and handleOffer is called.
+    window.localStreamReady.then(() => {
+        console.log(`Local stream ready, prepared for offer from new user ${newUserId}`);
+    }).catch(error => {
+        console.error(`Local stream failed to initialize while waiting for new user ${newUserId}:`, error);
+    });
 });
 
-socket.on('offer-received', ({ sdp, offererUserId }) => {
+socket.on('offer-received', async ({ sdp, offererUserId }) => { // Made async
     console.log(`Offer received from ${offererUserId}`, sdp);
-    if (typeof handleOffer === 'function') {
-        handleOffer(sdp, offererUserId);
-    } else {
-        console.error('handleOffer is not defined in webrtc.js');
+    try {
+        await window.localStreamReady; // Wait for local stream
+        console.log('Local stream ready, handling offer from', offererUserId);
+        if (typeof handleOffer === 'function') { // handleOffer is in webrtc.js
+            handleOffer(sdp, offererUserId);
+        } else {
+            console.error('handleOffer is not defined in webrtc.js');
+        }
+    } catch (error) {
+        console.error('Local stream not ready when trying to handle offer:', error);
+        // Optionally, notify the offerer that this client is not ready
     }
 });
 
@@ -154,5 +171,15 @@ socket.on('user-raised-hand', ({ userId, isRaised }) => {
         updateUserHandStatus(userId, isRaised);
     } else {
         console.error('updateUserHandStatus function not found in meeting-ui.js');
+    }
+});
+
+// Listen for remote mic status changes
+socket.on('remote-mic-status-changed', ({ userId, isMuted }) => {
+    console.log(`Remote mic status changed for user ${userId}: ${isMuted ? 'Muted' : 'Unmuted'}`);
+    if (window.meetingUI && typeof window.meetingUI.updateRemoteMuteIndicator === 'function') {
+        window.meetingUI.updateRemoteMuteIndicator(userId, isMuted);
+    } else {
+        console.error('updateRemoteMuteIndicator function not found in meeting-ui.js');
     }
 });

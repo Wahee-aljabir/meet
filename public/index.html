@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Conference App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 flex items-center justify-center h-screen p-4 sm:p-6 font-sans antialiased">
+    <div class="bg-white p-6 sm:p-10 rounded-xl shadow-2xl max-w-lg w-full text-gray-700">
+        <h1 class="text-4xl sm:text-5xl font-bold mb-10 text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-700 to-pink-600">ConnectSphere</h1>
+        
+        <!-- Error Message Display (Common for all sections) -->
+        <div id="errorMessage" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md relative mb-6 hidden" role="alert">
+            <strong class="font-bold">Oops!</strong>
+            <span class="block sm:inline" id="errorMessageText"></span>
+        </div>
+
+        <!-- Initial Actions Section -->
+        <div id="initialActions" class="space-y-6">
+            <div>
+                <button id="createMeetingBtn" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-lg text-lg w-full transition duration-150 ease-in-out transform hover:scale-105 shadow-md">
+                    Create New Meeting
+                </button>
+                <p class="text-xs text-gray-500 mt-2 text-center">Generate a secure code to start a video meeting.</p>
+            </div>
+            <div>
+                <button id="joinMeetingBtn" class="bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-semibold py-3 px-6 rounded-lg text-lg w-full transition duration-150 ease-in-out transform hover:scale-105 shadow-md">
+                    Join Existing Meeting
+                </button>
+                <p class="text-xs text-gray-500 mt-2 text-center">Enter the meeting code you received to join.</p>
+            </div>
+        </div>
+
+        <!-- Create Meeting Success Section (Modal-like) -->
+        <div id="createMeetingSection" class="hidden p-6 bg-gray-50 rounded-lg ring-1 ring-gray-200 transform transition-all duration-500 ease-in-out">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Meeting Created!</h2>
+            <p class="text-gray-600 text-center mb-1">Share this code with participants:</p>
+            <p id="meetingCodeText" class="text-4xl font-bold text-indigo-600 my-4 tracking-wider text-center break-all"></p>
+            <div class="flex space-x-3 mt-6">
+                <button id="copyCodeBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg w-full text-sm transition duration-150 ease-in-out shadow-sm">
+                    Copy Code
+                </button>
+                <button id="startMeetingBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg w-full text-lg transition duration-150 ease-in-out shadow-md">
+                    Start Meeting
+                </button>
+            </div>
+             <button id="backToHomeFromCreateBtn" class="mt-4 text-sm text-gray-500 hover:text-gray-700 w-full text-center">Back to home</button>
+        </div>
+        
+        <!-- Join Meeting Modal/Section -->
+        <div id="joinMeetingSection" class="hidden p-6 bg-gray-50 rounded-lg ring-1 ring-gray-200 transform transition-all duration-500 ease-in-out">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Join a Meeting</h2>
+            <div class="space-y-4">
+                <input type="text" id="meetingCodeInput" placeholder="Enter Meeting Code (e.g., ABC12XYZ)" class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-lg" maxlength="10">
+                <div class="flex space-x-3">
+                    <button id="cancelJoinBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg w-full text-sm transition duration-150 ease-in-out shadow-sm">
+                        Cancel
+                    </button>
+                    <button id="proceedJoinBtn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg w-full text-lg transition duration-150 ease-in-out shadow-md">
+                        Join Now
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Socket.IO client library is not needed on this page anymore if all actions are via REST -->
+    <!-- <script src="/socket.io/socket.io.js"></script> -->
+    <script src="js/main.js" defer></script>
+</body>
+</html>

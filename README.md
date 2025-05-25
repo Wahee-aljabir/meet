@@ -22,6 +22,8 @@ This is a real-time video conferencing web application that allows users to crea
     *   Node.js
     *   Express.js
     *   Socket.IO (for WebRTC signaling and real-time messaging)
+    *   PostgreSQL (via Neon for persistence)
+    *   `node-postgres` (pg) (Client library for PostgreSQL)
 *   **Frontend:**
     *   HTML5
     *   Tailwind CSS (via CDN)
@@ -33,6 +35,8 @@ This is a real-time video conferencing web application that allows users to crea
 *   Node.js (v14.x or later recommended) and npm (Node Package Manager). You can download them from [https://nodejs.org/](https://nodejs.org/).
 *   A modern web browser that supports WebRTC (e.g., Google Chrome, Mozilla Firefox, Microsoft Edge, Safari).
 *   Working camera and microphone for full participation.
+*   A PostgreSQL database. Instructions assume Neon, but any PostgreSQL instance can be used with adjustments to the connection string.
+*   Database connection string (e.g., from Neon, to be configured in `server.js` or via environment variables).
 
 ## Setup and Installation
 1.  **Clone the repository (or download the source code):**
@@ -52,6 +56,19 @@ This is a real-time video conferencing web application that allows users to crea
     ```bash
     npm install
     ```
+4.  **Database Setup:**
+    *   This application uses a PostgreSQL database for persistent storage of meeting information.
+    *   **1. Create a Neon Account/Project:** Go to [Neon.tech](https://neon.tech/), sign up, and create a new project. Neon will provide you with a PostgreSQL connection string.
+    *   **2. Configure Connection String:** The application expects the database connection string to be available in `server.js`. Currently, it's hardcoded:
+        ```javascript
+        const neonConnectionString = 'postgresql://Neondb_owner:npg_IKBHdX3QJnP4@ep-jolly-pine-abaqqczg-pooler.eu-west-2.aws.neon.tech/Neondb?sslmode=require';
+        ```
+        For production, it's strongly recommended to use an environment variable (e.g., `DATABASE_URL`) and modify `server.js` to use `process.env.DATABASE_URL`.
+    *   **3. Automatic Table Creation:** The server will automatically attempt to create the necessary `meetings` and `participants` tables when it starts if they don't already exist.
+
+## Environment Variables (Recommended for Production)
+*   `PORT`: The port the server will listen on (defaults to 3000 if not set).
+*   `DATABASE_URL`: Your PostgreSQL connection string (e.g., from Neon). The application would need to be updated to use this from `process.env.DATABASE_URL` instead of the hardcoded string in `server.js`.
 
 ## Running the Application
 1.  **Start the server:**
@@ -92,13 +109,13 @@ Once in the meeting room, you will have access to the following controls, typica
 *   **End Call:** Leave the meeting and return to the landing page.
 
 ## Known Issues
-*   The participant list is a placeholder and does not dynamically list participants yet.
+*   The participant list panel is a placeholder and does not dynamically list participants yet (though the backend logic fetches participant socket IDs).
 *   Advanced features (Background Blur, Noise Suppression, Auto-Mute on Join) are placeholders and not functionally implemented.
 *   Screen sharing UI might vary slightly based on browser implementation.
-*   No persistent storage; meetings are lost when the server restarts.
+*   The hardcoded database connection string in `server.js` is not ideal for production (environment variable recommended).
 
 ## Future Enhancements
-*   Fully functional participant list with status indicators (mic, camera, speaking).
+*   Fully functional participant list UI with status indicators (mic, camera, speaking).
 *   Implementation of advanced features like background blur and noise suppression.
 *   User authentication and named users.
 *   Persistent meeting rooms or scheduled meetings.
